@@ -44,17 +44,44 @@ def get_indian_time():
     current_time = datetime.now(ist)
     return current_time.strftime('%A, %d %B %Y, %I:%M:%S %p IST')
 
-# Generate diamond-style number pattern
+# Generate character-based diamond pattern
 def generate_pattern(n):
+    if n <= 0:
+        return []
+
+    pattern_source = "FORMULAQSOLUTIONS"
+    source_length = len(pattern_source)
+    mid = (n + 1) // 2
     lines = []
-    mid = n // 2 if n % 2 == 0 else (n + 1) // 2
-    
-    for i in range(1, n + 1):
-        max_num = i if i <= mid else n - i + 1
-        nums = [str(j) for j in range(1, max_num + 1)]
-        nums += [str(j) for j in range(max_num - 1, 0, -1)]
-        lines.append(" ".join(nums))
-    
+    line_number = 1
+
+    def build_line(i, current_line_number):
+        prefix_spaces = " " * (mid - i)
+        k = current_line_number - 1
+        total_chars = i * 2
+        chars = []
+
+        for j in range(1, total_chars):
+            current_char = pattern_source[k % source_length]
+            if i % 2 == 1:
+                chars.append(current_char)
+            else:
+                if j == 1 or j == total_chars - 1:
+                    chars.append(current_char)
+                else:
+                    chars.append("-")
+            k += 1
+
+        return prefix_spaces + "".join(chars)
+
+    for i in range(1, mid + 1):
+        lines.append(build_line(i, line_number))
+        line_number += 1
+
+    for i in range(mid - 1, 0, -1):
+        lines.append(build_line(i, line_number))
+        line_number += 12  # mirrors the provided reference logic
+
     return lines
 
 # Home page
