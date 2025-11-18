@@ -6,17 +6,36 @@ import os
 from dotenv import load_dotenv
 
 load_dotenv()
+
+
+def get_required_env(var_name: str) -> str:
+    """Fetch a required environment variable and fail fast if missing."""
+    value = os.getenv(var_name)
+    if not value:
+        raise RuntimeError(
+            f"Missing required environment variable: {var_name}. "
+            "Create a .env file or export it before starting the app."
+        )
+    return value.strip()
+
+
+SECRET_KEY = get_required_env('SECRET_KEY')
+GOOGLE_CLIENT_ID = get_required_env('GOOGLE_CLIENT_ID')
+GOOGLE_CLIENT_SECRET = get_required_env('GOOGLE_CLIENT_SECRET')
+GOOGLE_REDIRECT_URI = os.getenv('GOOGLE_REDIRECT_URI')
+
 app = Flask(__name__)
-app.secret_key = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
+app.secret_key = SECRET_KEY
 
 # Google OAuth setup
 oauth = OAuth(app)
 google = oauth.register(
     name='google',
-    client_id=os.getenv('GOOGLE_CLIENT_ID'),
-    client_secret=os.getenv('GOOGLE_CLIENT_SECRET'),
+    client_id=GOOGLE_CLIENT_ID,
+    client_secret=GOOGLE_CLIENT_SECRET,
     server_metadata_url='https://accounts.google.com/.well-known/openid-configuration',
-    client_kwargs={'scope': 'openid email profile'}
+    client_kwargs={'scope': 'openid email profile'},
+    redirect_uri=GOOGLE_REDIRECT_URI
 )
 
 # Get Indian Standard Time
@@ -48,7 +67,7 @@ def index():
 # Start Google login
 @app.route('/login')
 def login():
-    redirect_uri = url_for('authorize', _external=True)
+    redirect_uri = GOOGLE_REDIRECT_URI or url_for('authorize', _external=True)
     return google.authorize_redirect(redirect_uri)
 
 # Google OAuth callback
