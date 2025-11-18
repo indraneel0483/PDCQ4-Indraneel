@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Python Developer Challenge</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <div class="dashboard">
+            <!-- User Information Section -->
+            <div class="user-info">
+                {% if user.picture %}
+                <img src="{{ user.picture }}" alt="Profile Picture" class="profile-pic">
+                {% endif %}
+                
+                <h2>Welcome, {{ user.name }}!</h2>
+                <p class="email">{{ user.email }}</p>
+                <p class="time">{{ indian_time }}</p>
+                
+                <a href="{{ url_for('logout') }}" class="logout-link">Sign out</a>
+            </div>
+            
+            <hr>
+            
+            <!-- Pattern Generator Section -->
+            <div class="pattern-section">
+                <h3>Pattern Generator</h3>
+                
+                <div class="input-group">
+                    <label for="numLines">Number of Lines (1-100):</label>
+                    <input 
+                        type="number" 
+                        id="numLines" 
+                        name="numLines" 
+                        min="1" 
+                        max="100" 
+                        placeholder="Enter number (e.g., 16)"
+                        required
+                    >
+                    <button onclick="displayPattern()" class="display-btn">Display</button>
+                </div>
+                
+                <div id="error-message" class="error-message"></div>
+                
+                <div id="pattern-output" class="pattern-output"></div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        /**
+         * Display pattern by calling the backend API
+         * Fetches pattern from /generate-pattern endpoint and renders it
+         */
+        async function displayPattern() {
+            const numLines = document.getElementById('numLines').value;
+            const errorDiv = document.getElementById('error-message');
+            const outputDiv = document.getElementById('pattern-output');
+            
+            // Clear previous messages
+            errorDiv.textContent = '';
+            outputDiv.textContent = '';
+            
+            // Validate input
+            if (!numLines || numLines < 1 || numLines > 100) {
+                errorDiv.textContent = 'Please enter a valid number between 1 and 100';
+                return;
+            }
+            
+            try {
+                // Call backend API
+                const response = await fetch('/generate-pattern', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ lines: parseInt(numLines) })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    // Display pattern
+                    outputDiv.textContent = data.pattern.join('\n');
+                } else {
+                    // Display error
+                    errorDiv.textContent = data.error || 'An error occurred';
+                }
+            } catch (error) {
+                errorDiv.textContent = 'Failed to generate pattern: ' + error.message;
+            }
+        }
+        
+        // Allow Enter key to trigger display
+        document.getElementById('numLines').addEventListener('keypress', function(event) {
+            if (event.key === 'Enter') {
+                displayPattern();
+            }
+        });
+    </script>
+</body>
+</html>

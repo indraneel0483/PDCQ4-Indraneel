@@ -1,0 +1,103 @@
+from flask import Flask, redirect, url_for, session, render_template, request, jsonify
+from authlib.integrations.flask_client import OAuth
+from datetime import datetime
+import pytz
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+app = Flask(__name__)
+app.secret_key = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
+
+# Google OAuth setup
+oauth = OAuth(app)
+google = oauth.register(
+    name='google',
+    client_id=os.getenv('GOOGLE_CLIENT_ID'),
+    client_secret=os.getenv('GOOGLE_CLIENT_SECRET'),
+    server_metadata_url='https://accounts.google.com/.well-known/openid-configuration',
+    client_kwargs={'scope': 'openid email profile'}
+)
+
+# Get Indian Standard Time
+def get_indian_time():
+    ist = pytz.timezone('Asia/Kolkata')
+    current_time = datetime.now(ist)
+    return current_time.strftime('%A, %d %B %Y, %I:%M:%S %p IST')
+
+# Generate diamond-style number pattern
+def generate_pattern(n):
+    lines = []
+    mid = n // 2 if n % 2 == 0 else (n + 1) // 2
+    
+    for i in range(1, n + 1):
+        max_num = i if i <= mid else n - i + 1
+        nums = [str(j) for j in range(1, max_num + 1)]
+        nums += [str(j) for j in range(max_num - 1, 0, -1)]
+        lines.append(" ".join(nums))
+    
+    return lines
+
+# Home page
+@app.route('/')
+def index():
+    if 'user' in session:
+        return redirect(url_for('dashboard'))
+    return render_template('index.html')
+
+# Start Google login
+@app.route('/login')
+def login():
+    redirect_uri = url_for('authorize', _external=True)
+    return google.authorize_redirect(redirect_uri)
+
+# Google OAuth callback
+@app.route('/callback')
+def authorize():
+    try:
+        token = google.authorize_access_token()
+        resp = google.get('https://www.googleapis.com/oauth2/v1/userinfo')
+        user_info = resp.json()
+        session['user'] = {
+            'name': user_info.get('name'),
+            'email': user_info.get('email'),
+            'picture': user_info.get('picture')
+        }
+        return redirect(url_for('dashboard'))
+    except Exception:
+        # Log exception to console for easier debugging
+        import traceback
+        traceback.print_exc()
+        return redirect(url_for('index'))
+
+# Dashboard after login
+@app.route('/dashboard')
+def dashboard():
+    if 'user' not in session:
+        return redirect(url_for('index'))
+    return render_template('dashboard.html', user=session['user'], indian_time=get_indian_time())
+
+# Pattern generator API
+@app.route('/generate-pattern', methods=['POST'])
+def generate_pattern_route():
+    if 'user' not in session:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    try:
+        num_lines = int(request.get_json().get('lines', 0))
+        if not (1 <= num_lines <= 100):
+            return jsonify({'error': 'Number of lines must be between 1 and 100'}), 400
+        return jsonify({'pattern': generate_pattern(num_lines)})
+    
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+# Logout
+@app.route('/logout')
+def logout():
+    session.pop('user', None)
+    return redirect(url_for('index'))
+
+# Run Flask app
+if __name__ == '__main__':
+    app.run(debug=True, host='0.0.0.0', port=5000)
